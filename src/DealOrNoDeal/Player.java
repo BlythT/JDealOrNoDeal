@@ -15,4 +15,8 @@ public class Player {
     protected Double highScore;
     protected Double gamesPlayed;
     protected String name;
+    
+    public Player(String name){
+        this.name = name;
+    }
 }
