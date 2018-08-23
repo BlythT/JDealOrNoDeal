@@ -5,7 +5,8 @@
  */
 package DealOrNoDeal;
 
-import java.util.InputMismatchException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -21,28 +22,26 @@ public class Game {
     private TreeMap<Integer, Case> remainingCases;
     private SortedSet<Integer> caseNumbers;
     private int turn;
+    private int round;
+    private ArrayList<Double> remainingPrizes;
 
     //Default game settings
     //Holds the amount of cases revealed for each stage of the game
-    //Must add to NUMCASES minus 2
+    //Must add to amount of prizes minus 2
     private static final Integer[] REVEALS = {5, 3, 3, 3, 3, 3};
-    private static final Integer NUMCASES = 22;
-
-    private Integer[] reveals;
-    private Integer numCases;
+    private static final double[] PRIZELIST = {0.5, 1, 2, 5, 10, 20, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000, 20000, 30000, 50000, 75000, 100000, 200000};
 
     private Scanner sc;
 
-    public Game(Integer[] reveals, Integer numCases) {
+    public Game(Integer[] reveals, double[] prizelist) {
         sc = new Scanner(System.in);
-        this.reveals = reveals;
-        this.numCases = numCases;
         turn = 0;
+        round = 0;
         //Initialise empty treemap ready for cases to be added
+        remainingPrizes = new ArrayList<>();
         remainingCases = new TreeMap<>();
-        //Add cases (for now, temporary for testing, but more polished code or
-        //method to come later)
-        initialiseCases(NUMCASES);
+        //Add cases with prizes in them
+        initialiseCases(prizelist);
         //navigable key set is tied to treemap meaning when a case is removed
         //from the treemap, the number is also removed from remaining cases
         //further explained in navagableKeySet() doccumentation
@@ -52,11 +51,12 @@ public class Game {
 
     public Game() {
         //Create game with default values
-        this(REVEALS, NUMCASES);
+        this(REVEALS, PRIZELIST);
     }
 
     public void play() {
         turn = 0;
+        round = 0;
         //For testing purposes at the moment
         Player player = initialisePlayer();
         //Player chooses a case
@@ -82,30 +82,52 @@ public class Game {
         return false;
     }
 
-    private void initialiseCases(Integer amount) {
-        for (int i = 1; i <= amount; i++) {
-            remainingCases.put(i, new Case(i, i * 10));   //Temporaray prizes of i*10        
+    private void initialiseCases(double[] prizes) {
+        ArrayList<Double> prizeList = new ArrayList<>();
+        for (double prize : prizes) {
+            prizeList.add(prize);
+            remainingPrizes.add(prize);
+        }
+        Collections.shuffle(prizeList);
+        for (int i = 1; i <= prizeList.size(); i++) {
+            remainingCases.put(i, new Case(i, prizeList.get(i-1)));
+            
         }
     }
 
     private void revealCase() {
         int caseNumber = caseInput();
-        Case revealedCase = remainingCases.remove(caseInput());
+        Case revealedCase = remainingCases.remove(caseNumber);
+        System.out.println("The case contained... $" + revealedCase.prize + "!");
+        remainingPrizes.remove(revealedCase.prize);
+        enterToContinue();
     }
 
-    private void bankOffer(int turn) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    private void bankOffer() {
+        double sum = 0;
+        for (Double prize : remainingPrizes) {
+            sum+=prize;
+        }
+        double offer = ((sum/remainingPrizes.size())*(double)round/(double)10);
+        String offerString = String.format("%.0f", offer);
+        System.out.println("$$ The bank offers... $" + offerString + "!!! $$");
+        enterToContinue();
+        dealOrNoDeal(offer);
     }
 
     private void doReveals(int amount) {
 
         for (int i = 1; i <= amount; i++) {
+            System.out.println("");
+            System.out.println("------ Reveal " + turn + " ------");
             revealCase();
             turn++;
+            System.out.println("");
         }
+        round++;
         //Player is then made an offer by the banker based on turn count
         //and remaining value in cases
-        bankOffer(turn);
+        bankOffer();
     }
 
     private Player initialisePlayer() {
@@ -115,28 +137,48 @@ public class Game {
     }
 
     private int caseInput() {
-        boolean valid = true;
+        //Print cases to choose from
+        printRemainaingPrizes();
         printRemainingCases();
-        do {
-            System.out.println("Choose your case:");
+        while (true) {
+            System.out.println("Choose your case: ");
+            //Get user input
             try {
-                int caseNum = sc.nextInt();
+                int caseNum = Integer.parseInt(sc.nextLine());
                 if (remainingCases.containsKey(caseNum)) {
                     return caseNum;
                 }
-            } catch (InputMismatchException ex) {
-
-                valid = false;
+            } catch (NumberFormatException ex) {
+                System.out.println("Input error: not a valid number");
             }
-            System.out.println("Please enter a valid case");
-        } while (valid = false);
-        return -1;
+
+        }
+        //If case is valid number and is within the remaining cases, return number
+        //else repeat
     }
 
     private void printRemainingCases() {
+        System.out.println("Remaining cases:");
         for (Integer caseNumber : caseNumbers) {
             System.out.print(caseNumber + " ");
         }
         System.out.println("");
+    }
+
+    private void printRemainaingPrizes() {
+        System.out.println("Remaining prizes:");
+        for (Double prize : remainingPrizes) {
+            System.out.print(prize + " ");
+        }
+        System.out.println("");
+    }
+
+    private void enterToContinue() {
+         System.out.println("Press enter to continue to the next turn!");
+        sc.nextLine();
+    }
+
+    private void dealOrNoDeal(double offer) {
+        
     }
 }

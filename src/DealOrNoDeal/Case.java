@@ -17,7 +17,7 @@ class Case {
     //a CAR prize)
     protected Double prize;
     
-    public Case(int number, double prize){
+    public Case(int number, Double prize){
         this.number = number;
         this.prize = prize;
     }
