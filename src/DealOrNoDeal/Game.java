@@ -5,6 +5,7 @@
  */
 package DealOrNoDeal;
 
+import java.util.InputMismatchException;
 import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -71,22 +72,12 @@ public class Game {
     private boolean pickCase(Player player) {
         //If player does not have a case
         if (player.chosenCase == null) {
-            //Get list of available cases from already initialised treemap
-            //Contains all the case numbers in order
-
-            //display list of available cases to player
-            for (Integer caseNumber : caseNumbers) {
-                System.out.println(caseNumber);
-            }
-
-            //testing the linking between navagable keyset and 
-            System.out.println(caseNumbers.contains(5));
-            remainingCases.remove(5);
-            System.out.println(caseNumbers.contains(5));
-
             //get and validate the user input
+            int caseNumber = caseInput();
             //set chosenCase of player to case (The Case object that corrisponds
             //with chosen index
+            player.chosenCase = remainingCases.remove(caseNumber);
+            return true;
         }
         return false;
     }
@@ -98,7 +89,8 @@ public class Game {
     }
 
     private void revealCase() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        int caseNumber = caseInput();
+        Case revealedCase = remainingCases.remove(caseInput());
     }
 
     private void bankOffer(int turn) {
@@ -120,5 +112,31 @@ public class Game {
         System.out.println("Please enter your name:");
         String name = sc.nextLine();
         return new Player(name);
+    }
+
+    private int caseInput() {
+        boolean valid = true;
+        printRemainingCases();
+        do {
+            System.out.println("Choose your case:");
+            try {
+                int caseNum = sc.nextInt();
+                if (remainingCases.containsKey(caseNum)) {
+                    return caseNum;
+                }
+            } catch (InputMismatchException ex) {
+
+                valid = false;
+            }
+            System.out.println("Please enter a valid case");
+        } while (valid = false);
+        return -1;
+    }
+
+    private void printRemainingCases() {
+        for (Integer caseNumber : caseNumbers) {
+            System.out.print(caseNumber + " ");
+        }
+        System.out.println("");
     }
 }
