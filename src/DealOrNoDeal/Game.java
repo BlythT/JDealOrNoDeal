@@ -5,11 +5,18 @@
  */
 package DealOrNoDeal;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -25,6 +32,7 @@ public class Game {
     private int round;
     private double prize;
     private ArrayList<Double> remainingPrizes;
+    private ArrayList<Highscore> scoreboard;
 
     //Default game settings
     //Holds the amount of cases revealed for each stage of the game
@@ -33,22 +41,15 @@ public class Game {
     private static final double[] PRIZELIST = {0.5, 1, 2, 5, 10, 20, 50, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000, 20000, 30000, 50000, 75000, 100000, 200000};
 
     private Scanner sc;
+    private final double[] prizelist;
 
     public Game(Integer[] reveals, double[] prizelist) {
+        this.prizelist = prizelist;
         sc = new Scanner(System.in);
         prize = 0;
         turn = 0;
         round = 0;
-        //Initialise empty treemap ready for cases to be added
-        remainingPrizes = new ArrayList<>();
-        remainingCases = new TreeMap<>();
-        //Add cases with prizes in them
-        initialiseCases(prizelist);
-        //navigable key set is tied to treemap meaning when a case is removed
-        //from the treemap, the number is also removed from remaining cases
-        //further explained in navagableKeySet() doccumentation
-        caseNumbers = remainingCases.navigableKeySet();
-        //Game is ready to be played
+        initialiseHighscores();
     }
 
     public Game() {
@@ -56,7 +57,76 @@ public class Game {
         this(REVEALS, PRIZELIST);
     }
 
+    public void start() {
+        System.out.println("Welcome to Deal or No Deal!");
+        System.out.println("(1) Play game");
+        System.out.println("(2) Highscores");
+        boolean exiting = false;
+        do {
+
+            System.out.println("Type \"1\"/\"Play\" or \"2\"/\"Highscores\" or type \"X\" for exit");
+
+            String input = sc.nextLine();
+            switch (input.toLowerCase()) {
+                case "1":
+                case "play":
+                    play();
+                    break;
+                case "2":
+                case "highscores":
+                    highscores();
+                    break;
+                case "exit":
+                case "x":
+                    exiting = true;
+                    break;
+            }
+        } while (!exiting);
+        saveHighscores();
+    }
+
+    private boolean addHighscore(Player player, double score) {
+        boolean found = false;
+        boolean highscore = false;
+        int index = 0;
+        while (index < scoreboard.size()) {
+            if (player.name.equalsIgnoreCase(scoreboard.get(index).name)) {
+                found = true;
+                break;
+            }
+            index++;
+        }
+        //If already on scoreboard
+        if (found) {
+            //and score is higher than highscore
+            if (scoreboard.get(index).score < score) {
+                //it is a highscore
+                highscore = true;
+                //set the new score
+                Highscore temp = scoreboard.get(index);
+                temp.score = score;
+                scoreboard.set(index, temp);
+            }
+        } else {
+            highscore = true;
+            scoreboard.add(new Highscore(player.name, score));
+        }
+        //sort scoreboard based on new highscores
+        Collections.sort(scoreboard, Collections.reverseOrder());
+        return highscore;
+    }
+
     public void play() {
+        //Initialise empty treemap ready for cases to be added
+        remainingPrizes = new ArrayList<>();
+        remainingCases = new TreeMap<>();
+        //Add cases with prizes in them
+        initialiseCases(prizelist);
+        //navigable key set is tied to treemap meaning when a case is removed
+        //from the treemap, the number is also removed from remaining cases
+        //further explained in navagableKeySet() documentation
+        caseNumbers = remainingCases.navigableKeySet();
+        //Game is ready to be played
         turn = 0;
         round = 0;
         //For testing purposes at the moment
@@ -77,21 +147,19 @@ public class Game {
             System.out.println("Your case contains...");
             this.prize = player.chosenCase.prize;
             System.out.println("$" + this.prize + "!!!!");
-        }
-        //If they have taken the deal
-        else{
+        } //If they have taken the deal
+        else {
             System.out.println("You have taken the deal of $" + this.prize + "!!!");
             double caseAmount = player.chosenCase.prize;
             System.out.println("Your case contained...");
             System.out.println("$" + caseAmount + "!!!");
-            if(caseAmount>this.prize){
-                System.out.println("If only you had stuck with your case! You'd have earned $" + (caseAmount-this.prize) + " more! Better luck next time!");
-            }
-            else{
-                System.out.println("You made the right choice! You earned $" + (this.prize-caseAmount) + " more tham if you'd taken the case!");
+            if (caseAmount > this.prize) {
+                System.out.println("If only you had stuck with your case! You'd have earned $" + (caseAmount - this.prize) + " more! Better luck next time!");
+            } else {
+                System.out.println("You made the right choice! You earned $" + (this.prize - caseAmount) + " more tham if you'd taken the case!");
             }
         }
-        
+        addHighscore(player, prize);
     }
 
     //For the player to pick their case when the game starts
@@ -122,6 +190,7 @@ public class Game {
         }
     }
 
+    //Method used to print the contents of chosen case
     private void revealCase() {
         int caseNumber = caseInput();
         Case revealedCase = remainingCases.remove(caseNumber);
@@ -164,12 +233,26 @@ public class Game {
         return dealOrNoDeal(Double.parseDouble(offerString));
     }
 
+    //Sets up the player object
+    //TODO use this for high score board
+    //TODO use this for previous high score
     private Player initialisePlayer() {
-        System.out.println("Please enter your name:");
-        String name = sc.nextLine();
-        return new Player(name);
+        
+        boolean valid = false;
+        while (!valid) {
+            System.out.println("Please enter your name without spaces:");
+            String name = sc.nextLine();
+            if (!name.contains(" ")) {
+                valid = true;
+                return new Player(name);
+            }
+        }
+        //Will cause a null pointer exception if name has spaces since spaces
+        //will break highscore file format
+        return null;
     }
 
+    //Method to get input from the user to pick a case
     private int caseInput() {
         //Print cases to choose from
         printRemainaingPrizes();
@@ -191,6 +274,7 @@ public class Game {
         //else repeat
     }
 
+    //Prints the numbers of the cases that have not yet been chosen, excluding the players case
     private void printRemainingCases() {
         System.out.println("Remaining cases:");
         for (Integer caseNumber : caseNumbers) {
@@ -199,6 +283,7 @@ public class Game {
         System.out.println("");
     }
 
+    //Prints the prizes that have not yet been chosen, including the players case
     private void printRemainaingPrizes() {
         System.out.println("Remaining prizes:");
         for (Double prize : remainingPrizes) {
@@ -207,6 +292,7 @@ public class Game {
         System.out.println("");
     }
 
+    //Press enter to continue function to better pace/space CUI
     private void enterToContinue() {
         System.out.println("Press enter to continue to the next turn!");
         sc.nextLine();
@@ -232,4 +318,67 @@ public class Game {
         } while (!valid);
         return false;
     }
+
+    //TODO implement highscores list from file
+    private void highscores() {
+        //Read highscores
+        for (Highscore score : scoreboard) {
+            System.out.println(score.name + " " + score.score);
+        }
+    }
+
+    private void initialiseHighscores() {
+        scoreboard = new ArrayList<>();
+        File highscoreFile = new File("highscores.txt");
+        //If file not already created, create it
+        if (!highscoreFile.exists()) {
+            try {
+                highscoreFile.createNewFile();
+            } catch (IOException ex) {
+                System.out.println("Failed to create new file");
+                System.exit(1);
+            }
+        }
+        try {
+            Scanner fs = new Scanner(highscoreFile);
+            while (fs.hasNextLine()) {
+                scoreboard.add(new Highscore(fs.next(), fs.nextDouble()));
+                if (fs.hasNextLine()) {
+                    fs.nextLine();
+                }
+            }
+            fs.close();
+        } catch (FileNotFoundException ex) {
+            System.out.println("Highscore file not found");
+            System.exit(1);
+        } catch (NoSuchElementException ex) {
+            System.out.println("Highscore.txt invalid");
+        }
+        Collections.sort(scoreboard, Collections.reverseOrder());
+    }
+
+    private void saveHighscores() {
+        File highscoreFile = new File("highscores.txt");
+        //If file not already created, create it
+        if (!highscoreFile.exists()) {
+            try {
+                highscoreFile.createNewFile();
+            } catch (IOException ex) {
+                System.out.println("Failed to create new file");
+                System.exit(1);
+            }
+        }
+        try {
+            PrintWriter pr = new PrintWriter(highscoreFile);
+            for (Highscore score : scoreboard) {
+                pr.println(score.name + " " + score.score);
+            }
+            pr.flush();
+            pr.close();
+        } catch (FileNotFoundException ex) {
+            System.out.println("Highscore file not found");
+            System.exit(1);
+        }
+    }
+
 }
