@@ -23,6 +23,7 @@ public class Game {
     private SortedSet<Integer> caseNumbers;
     private int turn;
     private int round;
+    private double prize;
     private ArrayList<Double> remainingPrizes;
 
     //Default game settings
@@ -35,6 +36,7 @@ public class Game {
 
     public Game(Integer[] reveals, double[] prizelist) {
         sc = new Scanner(System.in);
+        prize = 0;
         turn = 0;
         round = 0;
         //Initialise empty treemap ready for cases to be added
@@ -63,9 +65,33 @@ public class Game {
         pickCase(player);
         //Player reveals a number of cases per turn based on reveals array field before an offer
         for (Integer amount : REVEALS) {
-            doReveals(amount);
+            boolean acceptedDeal = doReveals(amount);
+            if (acceptedDeal) {
+                break;
+            }
         }
-
+        System.out.println("");
+        //If they played to the last case and still said no deal
+        if (remainingCases.size() == 1) {
+            System.out.println("You have chosen to keep your case!");
+            System.out.println("Your case contains...");
+            this.prize = player.chosenCase.prize;
+            System.out.println("$" + this.prize + "!!!!");
+        }
+        //If they have taken the deal
+        else{
+            System.out.println("You have taken the deal of $" + this.prize + "!!!");
+            double caseAmount = player.chosenCase.prize;
+            System.out.println("Your case contained...");
+            System.out.println("$" + caseAmount + "!!!");
+            if(caseAmount>this.prize){
+                System.out.println("If only you had stuck with your case! You'd have earned $" + (caseAmount-this.prize) + " more! Better luck next time!");
+            }
+            else{
+                System.out.println("You made the right choice! You earned $" + (this.prize-caseAmount) + " more tham if you'd taken the case!");
+            }
+        }
+        
     }
 
     //For the player to pick their case when the game starts
@@ -82,41 +108,34 @@ public class Game {
         return false;
     }
 
+    //Sets up cases by placing prizes inside each case
     private void initialiseCases(double[] prizes) {
         ArrayList<Double> prizeList = new ArrayList<>();
-        for (double prize : prizes) {
-            prizeList.add(prize);
-            remainingPrizes.add(prize);
+        for (double p : prizes) {
+            prizeList.add(p);
+            remainingPrizes.add(p);
         }
         Collections.shuffle(prizeList);
         for (int i = 1; i <= prizeList.size(); i++) {
-            remainingCases.put(i, new Case(i, prizeList.get(i-1)));
-            
+            remainingCases.put(i, new Case(i, prizeList.get(i - 1)));
+
         }
     }
 
     private void revealCase() {
         int caseNumber = caseInput();
         Case revealedCase = remainingCases.remove(caseNumber);
-        System.out.println("The case contained... $" + revealedCase.prize + "!");
+        System.out.println("");
+        System.out.println("Case number " + revealedCase.number + " contained... $" + revealedCase.prize + "!");
         remainingPrizes.remove(revealedCase.prize);
         enterToContinue();
     }
 
-    private void bankOffer() {
-        double sum = 0;
-        for (Double prize : remainingPrizes) {
-            sum+=prize;
-        }
-        double offer = ((sum/remainingPrizes.size())*(double)round/(double)10);
-        String offerString = String.format("%.0f", offer);
-        System.out.println("$$ The bank offers... $" + offerString + "!!! $$");
-        enterToContinue();
-        dealOrNoDeal(offer);
-    }
-
-    private void doReveals(int amount) {
-
+    //Reveals the amount of cases specified in the argument "amount"
+    //before offering the player a deal from the bank
+    //returns true if deal
+    //returns false if no deal
+    private boolean doReveals(int amount) {
         for (int i = 1; i <= amount; i++) {
             System.out.println("");
             System.out.println("------ Reveal " + turn + " ------");
@@ -127,7 +146,22 @@ public class Game {
         round++;
         //Player is then made an offer by the banker based on turn count
         //and remaining value in cases
-        bankOffer();
+        return bankOffer();
+    }
+
+    //Calculates the banks offer and rounds it to 0dp
+    //Returns true if deal accepted
+    //Returns false if no deal
+    private boolean bankOffer() {
+        double sum = 0;
+        for (Double remainingPrize : remainingPrizes) {
+            sum += remainingPrize;
+        }
+        double offer = ((sum / remainingPrizes.size()) * (double) round / (double) 10);
+        //Convert to 0dp
+        String offerString = String.format("%.0f", offer);
+        //Parse 0dp version to deal or no deal
+        return dealOrNoDeal(Double.parseDouble(offerString));
     }
 
     private Player initialisePlayer() {
@@ -174,11 +208,28 @@ public class Game {
     }
 
     private void enterToContinue() {
-         System.out.println("Press enter to continue to the next turn!");
+        System.out.println("Press enter to continue to the next turn!");
         sc.nextLine();
     }
 
-    private void dealOrNoDeal(double offer) {
-        
+    //Promps player with bankers offer and requests input of deal or no deal
+    //Returns false if no deal
+    //Returns true if deal
+    private boolean dealOrNoDeal(double offer) {
+        printRemainaingPrizes();
+        this.prize = offer;
+        System.out.println("The bank has offered $" + offer + "! Deal or No Deal?");
+        boolean valid = false;
+        do {
+            String answer = sc.nextLine();
+            if (answer.equalsIgnoreCase("deal")) {
+                return true;
+            } else if (answer.equalsIgnoreCase("no deal")) {
+                return false;
+            } else {
+                System.out.println("Please enter a valid answer: \"Deal\" or \"No Deal\"");
+            }
+        } while (!valid);
+        return false;
     }
 }
